@@ -1,0 +1,44 @@
+# Node.js / React (Frontend)
+frontend/node_modules/            # React frontend node modules
+frontend/build/                   # React build output (production)
+frontend/.env                     # React environment variables (if any)
+
+# TypeScript
+*.tsbuildinfo                     # TypeScript build information (for incremental builds)
+
+# Vite
+frontend/.vite/                   # Vite's cache folder (Frontend)
+
+# Python (Backend - Flask)
+server/venv/                      # Python virtual environment (for Flask backend)
+server/*.pyc                      # Python bytecode files
+server/*.pyo                      # Optimized Python bytecode
+server/__pycache__/               # Python cache directory
+server/.env                       # Flask environment variables (if any)
+
+# IDE / Editor files
+.idea/                            # JetBrains IDEs
+.vscode/                          # VSCode IDE configuration
+*.sublime-project                 # Sublime Text project files
+*.sublime-workspace               # Sublime Text workspace files
+*.iml                             # IntelliJ IDEA project files
+
+# Operating system files
+.DS_Store                         # macOS Finder settings (not relevant to Windows, but included for cross-platform projects)
+Thumbs.db                         # Windows image file cache
+Desktop.ini                       # Windows desktop settings
+
+# Log files
+*.log                             # Log files
+*.bak                             # Backup files
+*.swp                             # Swap files
+
+# Windows-specific files
+# Recycle Bin used on file systems
+$RECYCLE.BIN/                     # Recycle Bin
+
+# Windows Installer files
+*.cab
+*.msi
+*.msm
+*.msp
