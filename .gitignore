@@ -42,3 +42,9 @@ $RECYCLE.BIN/                     # Recycle Bin
 *.msi
 *.msm
 *.msp
+__pycache__/
+*.pyc
+*.mp3
+*.zip
+*.wav
+.env
