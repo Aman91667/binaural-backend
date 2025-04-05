@@ -6,7 +6,9 @@ import io
 import zipfile
 
 app = Flask(__name__)
-CORS(app)
+
+# Allow frontend from localhost:3000 to access the backend
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 
 @app.route('/api/process', methods=['POST'])
 def process_audio():
