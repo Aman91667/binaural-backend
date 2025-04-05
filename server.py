@@ -1,57 +1,37 @@
-from flask import Flask, request, send_file, jsonify
-from flask_cors import CORS
 from pydub import AudioSegment
-from io import BytesIO
+import math
+import os
 
-app = Flask(__name__)
+def process_binaural(input_path: str, output_path: str, dimensionality: int = 2):
+    # Validate file
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file not found at: {input_path}")
 
-# Enable CORS for local and production frontend URLs
-CORS(app, origins=["http://localhost:3000", "https://your-frontend-domain.com"])
+    # Load audio
+    audio = AudioSegment.from_file(input_path)
 
-@app.route('/')
-def index():
-    return "Binaural Beats Backend Running"
-
-@app.route('/api/process', methods=['POST'])
-def process_audio():
-    try:
-        # ✅ Updated key from 'file' to 'audio'
-        if 'audio' not in request.files:
-            return jsonify({'error': 'No audio file part'}), 400
-
-        uploaded_file = request.files['audio']
-        if uploaded_file.filename == '':
-            return jsonify({'error': 'No selected file'}), 400
-
-        base_freq = float(request.form.get('baseFreq', 440))
-        beat_freq = float(request.form.get('beatFreq', 10))
-        original_volume = float(request.form.get('originalVolume', 1.0))
-        beat_volume = float(request.form.get('beatVolume', 0.5))
-
-        # Load uploaded audio file
-        audio = AudioSegment.from_file(uploaded_file)
+    # Convert to stereo if not already
+    if audio.channels == 1:
         audio = audio.set_channels(2)
 
-        # Simulate binaural beat by shifting frequency of right channel
-        left = audio.split_to_mono()[0]
-        right = left
+    # Normalize for safety
+    audio = audio.normalize()
 
-        # Apply phase difference simulation by panning (as a placeholder)
-        left = left.pan(-0.5) - (1 - original_volume) * 30
-        right = right.pan(0.5) - (1 - original_volume) * 30
+    # Define cycle length for spatial panning based on dimensionality
+    # The higher the dimensionality, the faster and deeper the motion
+    cycle_ms = 10000 / dimensionality  # total time of one L-R-L cycle in ms
 
-        combined = AudioSegment.from_mono_audiosegments(left, right)
+    processed = AudioSegment.empty()
 
-        # Export to memory
-        output_buffer = BytesIO()
-        combined.export(output_buffer, format="mp3")
-        output_buffer.seek(0)
+    for ms in range(0, len(audio), 50):  # process every 50ms
+        segment = audio[ms:ms + 50]
 
-        return send_file(output_buffer, mimetype="audio/mpeg", as_attachment=True, download_name="binaural_output.mp3")
+        # Calculate panning value using a sine wave to simulate circular motion
+        angle = 2 * math.pi * (ms % cycle_ms) / cycle_ms
+        pan_value = math.sin(angle)  # range: -1 (left) to +1 (right)
 
-    except Exception as e:
-        print("🔥 ERROR:", str(e))
-        return jsonify({'error': 'Processing failed', 'message': str(e)}), 500
+        panned = segment.pan(pan_value)
+        processed += panned
 
-if __name__ == '__main__':
-    app.run(debug=True)
+    # Export the result
+    processed.export(output_path, format="mp3", bitrate="192k")
