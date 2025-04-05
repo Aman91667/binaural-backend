@@ -6,10 +6,12 @@ from flask_cors import CORS
 import base64
 
 app = Flask(__name__)
+
+# Allow CORS from specific origins with credentials if required
 CORS(app, resources={r"/api/*": {"origins": [
     "http://localhost:3000",
     "https://binaural-backend.onrender.com"
-]}}) # Allow requests from frontend (localhost:3000)
+], "supports_credentials": True}})
 
 # Utility function to simulate dimensional panning effect
 def apply_dimensional_effect(audio: AudioSegment, dimensionality: int) -> AudioSegment:
@@ -37,6 +39,7 @@ def process_audio():
     dimensionality = int(request.form.get("dimensionality", 4))
 
     try:
+        # Load audio file
         audio = AudioSegment.from_file(audio_file)
 
         # Original audio to base64
@@ -44,7 +47,7 @@ def process_audio():
         audio.export(original_buffer, format="mp3")
         original_base64 = base64.b64encode(original_buffer.getvalue()).decode("utf-8")
 
-        # Immersive (processed) audio to base64
+        # Apply immersive dimensional effect
         immersive_audio = apply_dimensional_effect(audio, dimensionality)
         immersive_buffer = BytesIO()
         immersive_audio.export(immersive_buffer, format="mp3")
@@ -56,6 +59,8 @@ def process_audio():
         })
 
     except Exception as e:
+        # Log the error for debugging
+        app.logger.error(f"Error processing audio: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
