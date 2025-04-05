@@ -1,37 +1,59 @@
+from flask import Flask, request, jsonify
 from pydub import AudioSegment
-import math
-import os
+from pydub.effects import pan
+from io import BytesIO
+from flask_cors import CORS
+import base64
 
-def process_binaural(input_path: str, output_path: str, dimensionality: int = 2):
-    # Validate file
-    if not os.path.exists(input_path):
-        raise FileNotFoundError(f"Input file not found at: {input_path}")
+app = Flask(__name__)
+CORS(app)  # Allow requests from frontend (localhost:3000)
 
-    # Load audio
-    audio = AudioSegment.from_file(input_path)
+# Utility function to simulate dimensional panning effect
+def apply_dimensional_effect(audio: AudioSegment, dimensionality: int) -> AudioSegment:
+    duration_ms = len(audio)
+    segment_duration = max(500, duration_ms // (dimensionality * 2))
+    
+    output = AudioSegment.silent(duration=0)
+    direction = 1
+    
+    for i in range(0, duration_ms, segment_duration):
+        segment = audio[i:i+segment_duration]
+        pan_position = -1.0 if direction < 0 else 1.0
+        panned_segment = pan(segment, pan_position)
+        output += panned_segment
+        direction *= -1
 
-    # Convert to stereo if not already
-    if audio.channels == 1:
-        audio = audio.set_channels(2)
+    return output.set_channels(2)
 
-    # Normalize for safety
-    audio = audio.normalize()
+@app.route("/api/process", methods=["POST"])
+def process_audio():
+    if "audio" not in request.files:
+        return jsonify({"error": "No audio file provided."}), 400
 
-    # Define cycle length for spatial panning based on dimensionality
-    # The higher the dimensionality, the faster and deeper the motion
-    cycle_ms = 10000 / dimensionality  # total time of one L-R-L cycle in ms
+    audio_file = request.files["audio"]
+    dimensionality = int(request.form.get("dimensionality", 4))
 
-    processed = AudioSegment.empty()
+    try:
+        audio = AudioSegment.from_file(audio_file)
 
-    for ms in range(0, len(audio), 50):  # process every 50ms
-        segment = audio[ms:ms + 50]
+        # Original audio to base64
+        original_buffer = BytesIO()
+        audio.export(original_buffer, format="mp3")
+        original_base64 = base64.b64encode(original_buffer.getvalue()).decode("utf-8")
 
-        # Calculate panning value using a sine wave to simulate circular motion
-        angle = 2 * math.pi * (ms % cycle_ms) / cycle_ms
-        pan_value = math.sin(angle)  # range: -1 (left) to +1 (right)
+        # Immersive (processed) audio to base64
+        immersive_audio = apply_dimensional_effect(audio, dimensionality)
+        immersive_buffer = BytesIO()
+        immersive_audio.export(immersive_buffer, format="mp3")
+        immersive_base64 = base64.b64encode(immersive_buffer.getvalue()).decode("utf-8")
 
-        panned = segment.pan(pan_value)
-        processed += panned
+        return jsonify({
+            "original": original_base64,
+            "processed": immersive_base64
+        })
 
-    # Export the result
-    processed.export(output_path, format="mp3", bitrate="192k")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True)
