@@ -1,53 +1,57 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from pydub import AudioSegment
-from pydub.effects import pan
-from io import BytesIO
-import math
+import os
+import io
+import zipfile
+import tempfile
 
 app = Flask(__name__)
-CORS(app)  # ✅ Enable CORS
+CORS(app)  # ✅ Enables CORS for all origins
 
-# ✅ Optimized panning effect
-def apply_dimensional_effect(audio: AudioSegment, dimensionality: int) -> AudioSegment:
-    duration_ms = len(audio)
-    segment_duration = max(100, duration_ms // (dimensionality * 20))
-    output = AudioSegment.silent(duration=0)
-
-    for i in range(0, duration_ms, segment_duration):
-        segment = audio[i:i+segment_duration]
-        t_ratio = i / duration_ms
-        angle = 2 * math.pi * t_ratio * dimensionality
-        pan_val = math.sin(angle)
-        output += pan(segment, pan_val)
-
-    return output.set_channels(2)
+@app.route("/")
+def home():
+    return jsonify({"status": "Server running successfully."})
 
 @app.route("/api/process", methods=["POST"])
 def process_audio():
-    if "audio" not in request.files:
+    if 'audio' not in request.files:
         return jsonify({"error": "No audio file provided."}), 400
 
-    audio_file = request.files["audio"]
-    dimensionality = int(request.form.get("dimensionality", 4))
+    audio_file = request.files['audio']
+    dimensionality = int(request.form.get('dimensionality', 4))
 
-    try:
-        audio = AudioSegment.from_file(audio_file)
+    # Load uploaded audio
+    audio = AudioSegment.from_file(audio_file)
 
-        immersive_audio = apply_dimensional_effect(audio, dimensionality)
-        immersive_buffer = BytesIO()
-        immersive_audio.export(immersive_buffer, format="mp3")
-        immersive_buffer.seek(0)
+    # Apply basic fake 8D/16D effect by panning left and right
+    segments = []
+    for i in range(dimensionality):
+        pan = -1.0 + 2.0 * (i / (dimensionality - 1))  # Pans from -1.0 to +1.0
+        segment = audio.pan(pan)
+        segments.append(segment)
 
-        return send_file(
-            immersive_buffer,
-            mimetype="audio/mpeg",
-            as_attachment=False,
-            download_name="immersive_output.mp3"
-        )
+    # Concatenate processed segments for effect
+    final_mix = AudioSegment.empty()
+    for seg in segments:
+        final_mix += seg
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    # Save both original and processed audio to memory
+    original_io = io.BytesIO()
+    processed_io = io.BytesIO()
+    audio.export(original_io, format="mp3")
+    final_mix.export(processed_io, format="mp3")
+    original_io.seek(0)
+    processed_io.seek(0)
+
+    # Create a ZIP containing both files
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+        zip_file.writestr('original.mp3', original_io.read())
+        zip_file.writestr('mixed.mp3', processed_io.read())
+    zip_buffer.seek(0)
+
+    return send_file(zip_buffer, mimetype='application/zip', as_attachment=False, download_name="binaural_mix.zip")
 
 if __name__ == "__main__":
     app.run(debug=True)
