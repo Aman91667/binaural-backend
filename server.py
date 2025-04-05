@@ -5,8 +5,6 @@ from io import BytesIO
 import os
 
 app = Flask(__name__)
-
-# Enable CORS for local and production frontend URLs
 CORS(app, origins=["http://localhost:3000", "https://your-frontend-domain.com"])
 
 @app.route('/')
@@ -16,10 +14,11 @@ def index():
 @app.route('/api/process', methods=['POST'])
 def process_audio():
     try:
-        if 'file' not in request.files:
+        # ✅ Updated to match frontend key
+        if 'audio' not in request.files:
             return jsonify({'error': 'No file part'}), 400
 
-        uploaded_file = request.files['file']
+        uploaded_file = request.files['audio']
         if uploaded_file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
 
