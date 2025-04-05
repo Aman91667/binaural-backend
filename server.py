@@ -2,9 +2,10 @@ from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from pydub import AudioSegment
 from io import BytesIO
-import os
 
 app = Flask(__name__)
+
+# Enable CORS for local and production frontend URLs
 CORS(app, origins=["http://localhost:3000", "https://your-frontend-domain.com"])
 
 @app.route('/')
@@ -14,9 +15,9 @@ def index():
 @app.route('/api/process', methods=['POST'])
 def process_audio():
     try:
-        # ✅ Updated to match frontend key
+        # ✅ Updated key from 'file' to 'audio'
         if 'audio' not in request.files:
-            return jsonify({'error': 'No file part'}), 400
+            return jsonify({'error': 'No audio file part'}), 400
 
         uploaded_file = request.files['audio']
         if uploaded_file.filename == '':
