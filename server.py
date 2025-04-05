@@ -9,7 +9,7 @@ app = Flask(__name__)
 
 # Allow CORS from specific origins with credentials if required
 CORS(app, resources={r"/api/*": {"origins": [
-    "http://localhost:3000",
+    "https://b-music-seven.vercel.app",
     "https://binaural-backend.onrender.com"
 ], "supports_credentials": True}})
 
