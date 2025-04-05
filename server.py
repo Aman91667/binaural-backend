@@ -1,57 +1,57 @@
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from pydub import AudioSegment
+from io import BytesIO
 import os
-import io
-import zipfile
-import tempfile
 
 app = Flask(__name__)
-CORS(app)  # ✅ Enables CORS for all origins
 
-@app.route("/")
-def home():
-    return jsonify({"status": "Server running successfully."})
+# Enable CORS for local and production frontend URLs
+CORS(app, origins=["http://localhost:3000", "https://your-frontend-domain.com"])
 
-@app.route("/api/process", methods=["POST"])
+@app.route('/')
+def index():
+    return "Binaural Beats Backend Running"
+
+@app.route('/api/process', methods=['POST'])
 def process_audio():
-    if 'audio' not in request.files:
-        return jsonify({"error": "No audio file provided."}), 400
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
 
-    audio_file = request.files['audio']
-    dimensionality = int(request.form.get('dimensionality', 4))
+        uploaded_file = request.files['file']
+        if uploaded_file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
 
-    # Load uploaded audio
-    audio = AudioSegment.from_file(audio_file)
+        base_freq = float(request.form.get('baseFreq', 440))
+        beat_freq = float(request.form.get('beatFreq', 10))
+        original_volume = float(request.form.get('originalVolume', 1.0))
+        beat_volume = float(request.form.get('beatVolume', 0.5))
 
-    # Apply basic fake 8D/16D effect by panning left and right
-    segments = []
-    for i in range(dimensionality):
-        pan = -1.0 + 2.0 * (i / (dimensionality - 1))  # Pans from -1.0 to +1.0
-        segment = audio.pan(pan)
-        segments.append(segment)
+        # Load uploaded audio file
+        audio = AudioSegment.from_file(uploaded_file)
+        audio = audio.set_channels(2)
 
-    # Concatenate processed segments for effect
-    final_mix = AudioSegment.empty()
-    for seg in segments:
-        final_mix += seg
+        # Simulate binaural beat by shifting frequency of right channel
+        left = audio.split_to_mono()[0]
+        right = left
 
-    # Save both original and processed audio to memory
-    original_io = io.BytesIO()
-    processed_io = io.BytesIO()
-    audio.export(original_io, format="mp3")
-    final_mix.export(processed_io, format="mp3")
-    original_io.seek(0)
-    processed_io.seek(0)
+        # Apply phase difference simulation by panning (as a placeholder)
+        left = left.pan(-0.5) - (1 - original_volume) * 30
+        right = right.pan(0.5) - (1 - original_volume) * 30
 
-    # Create a ZIP containing both files
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-        zip_file.writestr('original.mp3', original_io.read())
-        zip_file.writestr('mixed.mp3', processed_io.read())
-    zip_buffer.seek(0)
+        combined = AudioSegment.from_mono_audiosegments(left, right)
 
-    return send_file(zip_buffer, mimetype='application/zip', as_attachment=False, download_name="binaural_mix.zip")
+        # Export to memory
+        output_buffer = BytesIO()
+        combined.export(output_buffer, format="mp3")
+        output_buffer.seek(0)
 
-if __name__ == "__main__":
+        return send_file(output_buffer, mimetype="audio/mpeg", as_attachment=True, download_name="binaural_output.mp3")
+
+    except Exception as e:
+        print("🔥 ERROR:", str(e))
+        return jsonify({'error': 'Processing failed', 'message': str(e)}), 500
+
+if __name__ == '__main__':
     app.run(debug=True)
