@@ -6,7 +6,10 @@ from flask_cors import CORS
 import base64
 
 app = Flask(__name__)
-CORS(app)  # Allow requests from frontend (localhost:3000)
+CORS(app, resources={r"/api/*": {"origins": [
+    "http://localhost:3000",
+    "https://binaural-backend.onrender.com"
+]}}) # Allow requests from frontend (localhost:3000)
 
 # Utility function to simulate dimensional panning effect
 def apply_dimensional_effect(audio: AudioSegment, dimensionality: int) -> AudioSegment:
